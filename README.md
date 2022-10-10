@@ -41,17 +41,64 @@
 
 
 ## Задание 2.
-### Пошагово выполнить каждый пункт раздела "ход работы" с описанием и примерами реализации задач
-Ход работы:
-- Произвести подготовку данных для работы с алгоритмом линейной регрессии. 10 видов данных были установлены случайным образом, и данные находились в линейной зависимости. Данные преобразуются в формат массива, чтобы их можно было вычислить напрямую при использовании умножения и сложения.
+### Pеализовать запись в Google-таблицу набора данных, полученных с помощью линейной регрессии из лабораторной работы 1.
+Запись в таблице:
+![image](https://user-images.githubusercontent.com/105049918/194905133-ce016c17-5ce4-4d3c-a94e-e503b6683a61.png)
+Код:
+```py
+import gspread
+import numpy as np
 
-- Определите связанные функции. Функция модели: определяет модель линейной регрессии wx+b. Функция потерь: функция потерь среднеквадратичной ошибки. Функция оптимизации: метод градиентного спуска для нахождения частных производных w и b.
+gc = gspread.service_account(filename="unitydatascience-364207-4193ae536507.json")
+sh = gc.open("UnitySheets")
 
-![image](https://user-images.githubusercontent.com/105049918/190895477-b4f5d226-9f0d-4946-8086-b355c997776e.png)
+x = [3,21,22,34,54,34,55,67,89,99]
+x = np.array(x)
+y = [2,22,24,65,79,82,55,130,150,199]
+y = np.array(y)
 
-Код задания можно посмотреть по ссылке: https://colab.research.google.com/drive/19aCJRYgkoxyFEQIqXTeDHqc-FbwNYwGW?usp=sharing
+def model(a, b, x):
+  return a*x + b
 
-Связанными являются функции: model - loss_function, model - optimize, iterate - optimize, iterate - model; (одна из пары используется в другой)
+def loss_function(a, b, x, y):
+  num = len(x)
+  prediction=model (a,b, x)
+  return (0.5/num) * (np.square(prediction-y)).sum()
+
+def optimize(a,b,x,y):
+  num = len(x)
+  prediction = model (a,b,x)
+  da = (1.0/num) * ((prediction -y)*x).sum()
+  db = (1.0/num) * ((prediction -y).sum())
+  a = a - Lr*da
+  b = b - Lr*db
+  return a, b
+
+def iterate(a,b,x,y,times) :
+  for i in range(times):
+    a,b = optimize (a,b,x,y)
+  return a,b
+
+a = np.random.rand(1)
+print (a)
+b = np.random.rand(1)
+print (b)
+Lr = 0.000001
+
+columns = ["E", "F", "G"]
+variables = ["a", "b", "loss"]
+for i in range(3):
+  sh.sheet1.update((columns[i] + "1"), variables[i])
+
+for i in range(2, 12):
+  a, b = iterate(a, b, x, y, i)
+  prediction = model(a, b, x)
+  loss = str(loss_function(a, b, x, y))
+  loss = loss.replace(".", ",")
+  sh.sheet1.update(("E" + str(i)), str(float(a)))
+  sh.sheet1.update(("F" + str(i)), str(float(b)))
+  sh.sheet1.update(("G" + str(i)), loss)
+```
 
 ## Задание 3
 ### Должна ли величина loss стремиться к нулю при изменении исходных данных? Ответьте на вопрос, приведите пример выполнения кода, который подтверждает ваш ответ.
