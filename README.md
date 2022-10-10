@@ -43,7 +43,7 @@
 ## Задание 2.
 ### Pеализовать запись в Google-таблицу набора данных, полученных с помощью линейной регрессии из лабораторной работы 1.
 Запись в таблице:
-![image](https://user-images.githubusercontent.com/105049918/194905133-ce016c17-5ce4-4d3c-a94e-e503b6683a61.png)
+![image](https://user-images.githubusercontent.com/105049918/194908602-4a613bf7-14c5-407b-9dd3-b4b28cefd790.png)
 Код:
 ```py
 import gspread
@@ -84,36 +84,118 @@ print (a)
 b = np.random.rand(1)
 print (b)
 Lr = 0.000001
-
-columns = ["E", "F", "G"]
-variables = ["a", "b", "loss"]
-for i in range(3):
-  sh.sheet1.update((columns[i] + "1"), variables[i])
-
-for i in range(2, 12):
+for i in range(1, 12):
   a, b = iterate(a, b, x, y, i)
   prediction = model(a, b, x)
   loss = str(loss_function(a, b, x, y))
   loss = loss.replace(".", ",")
-  sh.sheet1.update(("E" + str(i)), str(float(a)))
-  sh.sheet1.update(("F" + str(i)), str(float(b)))
-  sh.sheet1.update(("G" + str(i)), loss)
+  sh.sheet1.update(("D" + str(i)), str(float(a)))
+  sh.sheet1.update(("E" + str(i)), str(float(b)))
+  sh.sheet1.update(("F" + str(i)), loss)
 ```
 
 ## Задание 3
-### Должна ли величина loss стремиться к нулю при изменении исходных данных? Ответьте на вопрос, приведите пример выполнения кода, который подтверждает ваш ответ.
-![image](https://user-images.githubusercontent.com/105049918/190895470-fee6adae-50b6-4df4-8739-535c681ede3a.png)
-При увеличении значений a или b значение функции loss_function имеет тенденцию увеличения.
+### Самостоятельно разработать сценарий воспроизведения звукового сопровождения в Unity в зависимости от изменения считанных данных в задании 2.
+Будем считать среднее значение по loss и выбирать звук:
+хорошо) loss больше чем среднее значение
+нормально) loss +- 50 от среднего значения
+плохо) loss меньше чем среднее значение
 
-### Какова роль параметра Lr? Ответьте на вопрос, приведите пример выполнения кода, который подтверждает ваш ответ. В качестве эксперимента можете изменить значение параметра.
-![image](https://user-images.githubusercontent.com/105049918/190895556-54771d71-b5f9-4bb2-a774-a6f00ec95b22.png)
-![image](https://user-images.githubusercontent.com/105049918/190895583-fa4c1a5b-0b7e-49d8-9d3e-3afe67acd1e8.png)
-![image](https://user-images.githubusercontent.com/105049918/190895649-6d6ab27e-977c-45e7-b581-066acaec27cc.png)
-При увеличении Lr увеличивается расфокусировка лучей. Значит Lr влияет на это.
+![image](https://user-images.githubusercontent.com/105049918/194915062-4b9dff01-6c78-4238-833c-7e93925bc141.png)
+```py
+import gspread
+import numpy as np
 
+gc = gspread.service_account(filename="unitydatascience-364207-4193ae536507.json")
+sh = gc.open("UnitySheets")
+
+x = [3,21,22,34,54,34,55,67,89,99]
+x = np.array(x)
+y = [2,22,24,65,79,82,55,130,150,199]
+y = np.array(y)
+
+def model(a, b, x):
+  return a*x + b
+
+def loss_function(a, b, x, y):
+  num = len(x)
+  prediction=model (a,b, x)
+  return (0.5/num) * (np.square(prediction-y)).sum()
+
+def optimize(a,b,x,y):
+  num = len(x)
+  prediction = model (a,b,x)
+  da = (1.0/num) * ((prediction -y)*x).sum()
+  db = (1.0/num) * ((prediction -y).sum())
+  a = a - Lr*da
+  b = b - Lr*db
+  return a, b
+
+def iterate(a,b,x,y,times) :
+  for i in range(times):
+    a,b = optimize (a,b,x,y)
+  return a,b
+
+a = np.random.rand(1)
+print (a)
+b = np.random.rand(1)
+print (b)
+Lr = 0.000001
+sumA = 0
+sumB = 0
+sumLoss = 0
+for i in range(1, 12):
+  a, b = iterate(a, b, x, y, i)
+  prediction = model(a, b, x)
+  loss = loss_function(a, b, x, y)
+  sumA += a
+  sumB += b
+  sumLoss += loss
+  sh.sheet1.update(("D" + str(i)), str(float(a)).replace(".", ","))
+  sh.sheet1.update(("E" + str(i)), str(float(b)).replace(".", ","))
+  sh.sheet1.update(("F" + str(i)), str(loss).replace(".", ","))
+for i in range(1, 12):
+  sh.sheet1.update(("G" + str(i)), str(sumLoss/11).replace(".", ","))
+```
+
+```С#
+void Update()
+        {
+            if (Abs(dataSet["Mon_" + i.ToString()]) <= 50  && statusStart == false && i != dataSet.Count)
+            {
+                StartCoroutine(PlaySelectAudioNormal());
+                Debug.Log(dataSet["Mon_" + i.ToString()]);
+            }     
+            else if (dataSet["Mon_" + i.ToString()] > 0 && statusStart == false && i != dataSet.Count)
+            {   
+                StartCoroutine(PlaySelectAudioGood());
+                Debug.Log(dataSet["Mon_" + i.ToString()]);
+            }
+            else if (statusStart == false && i != dataSet.Count)
+            {
+                StartCoroutine(PlaySelectAudioBad());
+                Debug.Log(dataSet["Mon_" + i.ToString()]);
+            }
+                
+        }
+
+        IEnumerator GoogleSheets()
+        {
+            UnityWebRequest currentResp = UnityWebRequest.Get("https://sheets.googleapis.com/v4/spreadsheets/1QT50QwMxz4wMMGVfEYp9t-ac274d7PdqgjTWptEM7zU/values/Лист1?key=AIzaSyAcEn3Tt_8W3pqRVhXdhC8xxgyMDZC2AvE");
+            yield return currentResp.SendWebRequest();
+            string rawResp = currentResp.downloadHandler.text;
+            var rawJson = JSON.Parse(rawResp);
+            foreach(var itemRawJson in rawJson["values"])
+            {
+                var parseJson = JSON.Parse(itemRawJson.ToString());
+                var selectRaw = parseJson[0].AsStringList;
+                dataSet.Add(("Mon_" + selectRaw[0]), (float.Parse(selectRaw[5])-(float.Parse(selectRaw[6]))));
+            }
+        }
+```
 ## Выводы
 
-Я поработал в Google Colab в первый раз, узнал что такоеп связанные функции, определил их. Установил Unity и Anaconda, но почти ничего не узнал про numpy/pandas, не до конца разобрался с Unity.
+Я научился делать совместную работу и передачу данных в связке Python - Google Sheets - Unity, самостоятельно разработал алгоритм воспроизведения звуков.
 
 | Plugin | README |
 | ------ | ------ |
